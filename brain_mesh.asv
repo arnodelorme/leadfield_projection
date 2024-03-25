@@ -1,20 +1,12 @@
 clear
 
-load mesh.mat
+plotTexture = true;
 
-figure('position', [1440 1 1484 1237]);
+load refined_mesh.mat
+vertices(:,2) = vertices(:,2)+20;
+vertices(:,3) = vertices(:,3)+10;
 pairwiseDist = ones(size(vertices,1),4);
-colors = pairwiseDist(:,4)*2;
-patch('Vertices', vertices, 'Faces', faces, ...
-      'FaceColor', 'interp', 'FaceVertexCData', colors, ...
-      'EdgeColor', 'none');
-
-daspect([1 1 1]);
-view(3);
-axis equal;
-colorbar;
-
-camlight left; camlight right; lighting phong; axis equal; axis off;
+colors = repmat(pairwiseDist(:,4)*2, [1 3]);
 
 %% make a plot shere
 if 0
@@ -29,6 +21,7 @@ end
 %%
 hold on;
 load mandrill
+X = flipud(X);
 clear xx yy zz;
 X = X(1:4:end,1:4:end);
 x = linspace(-0.25,0.25, size(X,1));
@@ -51,35 +44,133 @@ for k = 1:length(x(:))
     % x, y and z
     % top of sphere 0,0,1
 end
-ht = traditionaldipfit([0 0 9 -pi/4 -pi/4 0 100 100 100]);
-ht = traditionaldipfit([0 -20 -10 -pi/4 -pi/4 0 100 100 100]);
-coords = ht*[ xx(:) yy(:) zz(:) ones(length(xx),1)]';
-coords = coords';
 
-xx = reshape(coords(:,1), size(x));
-yy = reshape(coords(:,2), size(x));
-zz = reshape(coords(:,3), size(x));
+% ht1 = traditionaldipfit([ 0 -20 -10 pi/4+0.1 0 pi/4+0.1 100 100 100]);
+ht1 = traditionaldipfit([ 0 0 0 pi/4+0.1 0 pi/4+0.1 100 100 100]);
 
-% xx = reshape(xx, size(x))*100;
-% yy = reshape(yy, size(x))*100-20;
-% zz = reshape(zz, size(x))*100-10;
+if 1
+    ht0 = traditionaldipfit([ 0 0 0 0 0 pi/4 1 1 1]);
+    coords = ht0*[ xx(:) yy(:) zz(:) ones(length(xx(:)),1)]';
+    xx = coords(1,:); yy = coords(2,:); zz = coords(3,:); 
+    
+    tmp = xx; xx = zz; zz = tmp;
+    coords = ht1*[ xx(:) yy(:) zz(:) ones(length(xx(:)),1)]';
+    
+    xx = reshape(coords(1,:), size(x));
+    yy = reshape(coords(2,:), size(x));
+    zz = reshape(coords(3,:), size(x));
+    mesh = surf2patch(xx, yy, zz);
+    
+    % Create a figure and render the textured mesh
+    colorsM = zeros(numel(X),3);
+    X = X';
+    for iX = 1:length(X(:))
+        colorsM(iX,:) = map(X(iX),:);
+        % colors{iX} = [ '#' dec2hex(floor(255*map(X(iX),1)),2) dec2hex(floor(255*map(X(iX),2)),2) dec2hex(floor(255*map(X(iX),3)),2)  ];
+    end
+    
+    if ~plotTexture
+        patch('Vertices', mesh.vertices, 'Faces', mesh.faces, 'FaceVertexCData', colorsM, 'FaceColor', 'interp', 'EdgeColor', 'none');
+        %patch('Vertices', mesh.vertices, 'Faces', mesh.faces, 'FaceColor', 'none', 'EdgeColor', 'k');
+        %surface(xx(1:10:end,1:10:end),yy(1:10:end,1:10:end),zz(1:10:end,1:10:end), 'FaceColor','texturemap','EdgeColor','none','Cdata',flipud(X))
+        %colormap(map)
+        %view(148, 90)
+        view(70, 26);
+        axis equal
+   end
+ 
+    % scan vertices and find the closest vertices
+    diff = zeros(1,size(vertices,1));
+    coords = [xx(:) yy(:) zz(:)];
+    listInd = [];
+    for iVert = 1:size(vertices,1)
+        if vertices(iVert,1) > 20 && vertices(iVert,2) < -20 % remove quandrants to speed up
+            vert = vertices(iVert,:);
+            vert = vert./norm(vert)*100;
+    
+            % pairwise distance with xx, yy, and zz
+            difftmp = bsxfun(@minus, coords, vert);
+            [diff(iVert),ind] = min(vecnorm(difftmp'));
+            %[diff(iVert),ind] = min(sum(abs(difftmp')));
+    
+            % TO DO ********************
+            if diff(iVert) < 1
+                colors(iVert,:) = colorsM(ind,:);
+                listInd = [ listInd iVert ];
+            end
+        end
+    end
 
-mesh = surf2patch(xx, yy, zz);
+    % vertices(listInd);
+    keepInd = [];
+    keepInd = zeros(1, size(faces,1), 'logical');
+    parfor iFace = 1:size(faces,1)
+        if any(faces(iFace,1) == listInd) || any(faces(iFace,2) == listInd) || any(faces(iFace,3) == listInd)
+            % keepInd(end+1) = iFace;
+            keepInd(iFace) = true;
+        end
+    end
+    keepInd = find(keepInd);
+    faces = faces(keepInd,:);
 
-% Create a figure and render the textured mesh
-colors = zeros(numel(X),3);
-X = X';
-for iX = 1:length(X(:))
-    colors(iX,:) = map(X(iX),:);
-    % colors{iX} = [ '#' dec2hex(floor(255*map(X(iX),1)),2) dec2hex(floor(255*map(X(iX),2)),2) dec2hex(floor(255*map(X(iX),3)),2)  ];
+    if 1
+        % plot low res mesh
+        tmp = load('mesh.mat');
+        verticesLR = tmp.vertices;
+        verticesLR(:,2) = verticesLR(:,2)+20;
+        verticesLR(:,3) = verticesLR(:,3)+10;
+        pairwiseDist = ones(size(verticesLR,1),4);
+        facesLR = tmp.faces;
+        colorsLR = repmat(pairwiseDist(:,4)*2, [1 3]);
+
+        % make the vertices close to the image deeper.
+        for iVert = 1:size(verticesLR,1)
+            if verticesLR(iVert,1) > 20 && verticesLR(iVert,2) < -20 % remove quandrants to speed up
+                vert = vertices(iVert,:);
+                vert = vert./norm(vert)*100;
+        
+                % pairwise distance with xx, yy, and zz
+                difftmp = bsxfun(@minus, coords, vert);
+                [diff(iVert),ind] = min(vecnorm(difftmp'));
+                %[diff(iVert),ind] = min(sum(abs(difftmp')));
+        
+                % TO DO ********************
+                if diff(iVert) < 1
+                    colors(iVert,:) = colorsM(ind,:);
+                    listInd = [ listInd iVert ];
+                end
+            end
+        end
+    
+        figure('position', [1440 1 1484 1237]);
+        patch('Vertices', verticesLR, 'Faces', facesLR, ...
+              'FaceColor', 'interp', 'FaceVertexCData', colorsLR, ...
+              'EdgeColor', 'none');
+    
+        daspect([1 1 1]);
+        view(3);
+        axis equal;
+        camlight headlight; lighting phong; axis equal; axis off;
+    end
+    
+    if plotTexture
+        patch('Vertices', vertices, 'Faces', faces, ...
+              'FaceColor', 'interp', 'FaceVertexCData', colors, ...
+              'EdgeColor', 'none');
+    
+        daspect([1 1 1]);
+        view(70, 26);
+        axis equal;
+        camlight right; lighting phong; axis equal; axis off;
+    end
+
+else
+    %% create sphere
+    [k,l,m] = sphere;
+    tmp = k; k = m; m = tmp;
+    coords = ht1*[ k(:) l(:) m(:) ones(length(k(:)),1)]';
+    surf(reshape(coords(1,:), size(k)), reshape(coords(2,:), size(k)), reshape(coords(3,:), size(k)), 'facecolor', 'none');
 end
 
-patch('Vertices', mesh.vertices, 'Faces', mesh.faces, 'FaceVertexCData', colors, 'FaceColor', 'interp', 'EdgeColor', 'none');
-
-%surface(xx(1:10:end,1:10:end),yy(1:10:end,1:10:end),zz(1:10:end,1:10:end), 'FaceColor','texturemap','EdgeColor','none','Cdata',flipud(X))
-%colormap(map)
-%view(148, 90)
-view(3);
-axis equal
 
 
