@@ -124,23 +124,23 @@ if 1
         colorsLR = repmat(pairwiseDist(:,4)*2, [1 3]);
 
         % make the vertices close to the image deeper.
-        % for iVert = 1:size(verticesLR,1)
-        %     if verticesLR(iVert,1) > 20 && verticesLR(iVert,2) < -20 % remove quandrants to speed up
-        %         vert = verticesLR(iVert,:);
-        %         vert = vert./norm(vert)*100;
-        % 
-        %         % pairwise distance with xx, yy, and zz
-        %         difftmp = bsxfun(@minus, coords, vert);
-        %         [diff(iVert),ind] = min(vecnorm(difftmp'));
-        %         %[diff(iVert),ind] = min(sum(abs(difftmp')));
-        % 
-        %         % TO DO ********************
-        %         if diff(iVert) < 5
-        %             verticesLR = 0.9*verticesLR;
-        %         end
-        %     end
-        % end
-        % 
+        for iVert = 1:size(verticesLR,1)
+            if verticesLR(iVert,1) > 20 && verticesLR(iVert,2) < -20 % remove quandrants to speed up
+                vert = verticesLR(iVert,:);
+                vert = vert./norm(vert)*100;
+    
+                % pairwise distance with xx, yy, and zz
+                difftmp = bsxfun(@minus, coords, vert);
+                [diff(iVert),ind] = min(vecnorm(difftmp'));
+                %[diff(iVert),ind] = min(sum(abs(difftmp')));
+    
+                % TO DO ********************
+                if diff(iVert) < 5
+                    verticesLR(iVert,:) = 0.9*verticesLR(iVert,:);
+                end
+            end
+        end
+
         figure('position', [1440 1 1484 1237]);
         patch('Vertices', verticesLR, 'Faces', facesLR, ...
               'FaceColor', 'interp', 'FaceVertexCData', colorsLR, ...
@@ -171,5 +171,11 @@ else
     surf(reshape(coords(1,:), size(k)), reshape(coords(2,:), size(k)), reshape(coords(3,:), size(k)), 'facecolor', 'none');
 end
 
-
-
+% next steps
+% - refine the vertices and faces
+%    - remove vertices which do not have a face
+%    - reindex the faces
+% - transform back to original space (y-20 and z-10) and save
+% - use mesh to compute leadfield on 370 electrodes
+% - propagate R G and B separately, add the 3 to get the color
+% - add more electrodes for higher scalp resolution

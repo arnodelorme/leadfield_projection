@@ -126,22 +126,21 @@ if 1
         % make the vertices close to the image deeper.
         for iVert = 1:size(verticesLR,1)
             if verticesLR(iVert,1) > 20 && verticesLR(iVert,2) < -20 % remove quandrants to speed up
-                vert = vertices(iVert,:);
+                vert = verticesLR(iVert,:);
                 vert = vert./norm(vert)*100;
-        
+    
                 % pairwise distance with xx, yy, and zz
                 difftmp = bsxfun(@minus, coords, vert);
                 [diff(iVert),ind] = min(vecnorm(difftmp'));
                 %[diff(iVert),ind] = min(sum(abs(difftmp')));
-        
+    
                 % TO DO ********************
-                if diff(iVert) < 1
-                    colors(iVert,:) = colorsM(ind,:);
-                    listInd = [ listInd iVert ];
+                if diff(iVert) < 5
+                    verticesLR(iVert,:) = 0.9*verticesLR(iVert,:);
                 end
             end
         end
-    
+
         figure('position', [1440 1 1484 1237]);
         patch('Vertices', verticesLR, 'Faces', facesLR, ...
               'FaceColor', 'interp', 'FaceVertexCData', colorsLR, ...
@@ -172,5 +171,6 @@ else
     surf(reshape(coords(1,:), size(k)), reshape(coords(2,:), size(k)), reshape(coords(3,:), size(k)), 'facecolor', 'none');
 end
 
-
+% next steps
+% 
 
