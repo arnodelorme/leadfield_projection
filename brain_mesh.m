@@ -266,9 +266,18 @@ patch('Vertices', headMesh.vertices, 'Faces', headMesh.faces, ...
 
 daspect([1 1 1]);
 view(3);
-axis equal;
 camlight headlight; camlight right; lighting phong; axis equal; axis off;
+view(116, 42);
+axis equal;
 material([1 1 1]*0.5);
+
+
+%% Create 3 colors
+figure
+subplot(1,3,1); colorTmp = chanAct; colorTmp(:,2:3)   = 0; patch('Vertices', headMesh.vertices, 'Faces', headMesh.faces, 'FaceColor', 'interp', 'FaceVertexCData', colorTmp, 'EdgeColor', 'none'); daspect([1 1 1]); view(3); camlight headlight; camlight right; lighting phong; axis equal; axis off; view(116, 42); axis equal; 
+subplot(1,3,2); colorTmp = chanAct; colorTmp(:,[1 3]) = 0; patch('Vertices', headMesh.vertices, 'Faces', headMesh.faces, 'FaceColor', 'interp', 'FaceVertexCData', colorTmp, 'EdgeColor', 'none'); daspect([1 1 1]); view(3); camlight headlight; camlight right; lighting phong; axis equal; axis off; view(116, 42); axis equal; 
+subplot(1,3,3); colorTmp = chanAct; colorTmp(:,1:2)   = 0; patch('Vertices', headMesh.vertices, 'Faces', headMesh.faces, 'FaceColor', 'interp', 'FaceVertexCData', colorTmp, 'EdgeColor', 'none'); daspect([1 1 1]); view(3); camlight headlight; camlight right; lighting phong; axis equal; axis off;view(116, 42); axis equal; 
+
 
 %
 %

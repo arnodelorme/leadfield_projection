@@ -40,6 +40,3 @@ patch('Vertices', vertices, 'Faces', faces, ...
 daspect([1 1 1]);
 view(3);
 axis equal;
-colorbar;
-
-%%
