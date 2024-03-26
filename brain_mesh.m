@@ -210,11 +210,19 @@ save('-mat', headmodelMonkey, '-struct', 'tmp');
 
 %% create dataset with many electrodes
 dipfitdefs;
+headMesh = load('-mat', 'colin27headmesh.mat');
 
 EEG = eeg_emptyset;
-EEG.chanlocs = readlocs(template_models(2).chanfile);
+if 0
+    EEG.chanlocs = readlocs(template_models(2).chanfile);
+else
+    EEG.chanlocs = struct('X', mattocell(headMesh.vertices(:,1)), 'Y', mattocell(headMesh.vertices(:,2)), 'Z', mattocell(headMesh.vertices(:,3)) );
+    for iChan = 1:length(EEG.chanlocs), EEG.chanlocs(iChan).labels = sprintf('Chan%d', iChan); end
+    EEG.chanlocs = convertlocs(EEG.chanlocs, 'cart2all');
+end
 [EEG.chanlocs, EEG.chaninfo] = eeg_checkchanlocs(EEG.chanlocs);
-EEG.data = rand(345,1000);
+nChans = length(EEG.chanlocs);
+EEG.data = rand(nChans,nChans*2);
 EEG.srate = 100;
 EEG = eeg_checkset(EEG);
 EEG = pop_dipfit_settings( EEG, 'hdmfile',template_models(2).hdmfile,'mrifile',template_models(2).mrifile,'chanfile',template_models(2).chanfile,'coordformat',template_models(2).coordformat,'coord_transform',[0 0 0 0 0 0 1 1 1]);
@@ -227,17 +235,46 @@ leadfield = permute(leadfield, [1 3 2]);
 % nvox = size(leadfield,2);
 % leadfield = reshape(H*leadfield(:, :), EEG.nbchan, nvox, 3);
 
-redChan = colors(:,1); % should we put the color on the normal of the surface?
-if 0
-    activity = repmat(redChan, [1 3]);
+%%
+if 1
+    activity1 = repmat(colors(:,1), [1 3]);
+    activity2 = repmat(colors(:,2), [1 3]);
+    activity3 = repmat(colors(:,3), [1 3]);
 else
-    activity = zeros(length(redChan)*3,1); activity(length(redChan)+1:length(redChan)*2) = redChan;
+    redChan = colors(:,1); % should we put the color on the normal of the surface?
+    activity1 = zeros(length(redChan)*3,1); activity(length(redChan)+1:length(redChan)*2) = redChan;
+    activity2 = zeros(length(redChan)*3,1); activity(length(redChan)+1:length(redChan)*2) = redChan;
+    activity3 = zeros(length(redChan)*3,1); activity(length(redChan)+1:length(redChan)*2) = redChan;
 end
-chanAct = leadfield(:,:)*activity(:);
+chanAct1 = leadfield(:,:)*activity1(:);
+chanAct2 = leadfield(:,:)*activity2(:);
+chanAct3 = leadfield(:,:)*activity3(:);
+chanAct = [  chanAct1 chanAct2 chanAct3 ];
+limits = [ min(min(chanAct)) max(max(chanAct)) ];
+chanAct =  (chanAct-limits(1))/(limits(2) - limits(1));
 
-EEG = pop_runica(EEG, 'icatype', 'picard', 'maxiter',5);
-EEG.icawinv(:,2) = chanAct;
-figure; EEG = pop_headplot(EEG, 0, 2, 'Components of dataset: ', 1, 'meshfile','colin27headmesh.mat','transform',[0 0 0 0 0 0 1 1 1], 'setup',{'/System/Volumes/Data/data/matlab/test3d/tmp.spl','meshfile','colin27headmesh.mat','transform',[0 0 0 0 0 0 1 1 1] });
+% get colors for each face
+headMeshColors = zeros(size(headMesh.faces, 1),3);
+for iFace = 1:size(headMesh.faces, 1)
+    headMeshColors(iFace, :) = chanAct( headMesh.faces(iFace,:) );
+end
 
+figure('position', [1440 1 1484 1237]);
+patch('Vertices', headMesh.vertices, 'Faces', headMesh.faces, ...
+    'FaceColor', 'interp', 'FaceVertexCData', chanAct, ...
+    'EdgeColor', 'none');
+
+daspect([1 1 1]);
+view(3);
+axis equal;
+camlight headlight; camlight right; lighting phong; axis equal; axis off;
+material([1 1 1]*0.5);
+
+%
+%
+% EEG = pop_runica(EEG, 'icatype', 'picard', 'maxiter',5);
+% EEG.icawinv(:,2) = chanAct;
+% figure; EEG = pop_headplot(EEG, 0, 2, 'Components of dataset: ', 1, 'meshfile','colin27headmesh.mat','transform',[0 0 0 0 0 0 1 1 1], 'setup',{'/System/Volumes/Data/data/matlab/test3d/tmp.spl','meshfile','colin27headmesh.mat','transform',[0 0 0 0 0 0 1 1 1] });
+% 
 
 
