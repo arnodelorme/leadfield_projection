@@ -68,7 +68,12 @@ if 1
         colorsM(iX,:) = map(X(iX),:);
         % colors{iX} = [ '#' dec2hex(floor(255*map(X(iX),1)),2) dec2hex(floor(255*map(X(iX),2)),2) dec2hex(floor(255*map(X(iX),3)),2)  ];
     end
-    
+    colorsM2 = reshape(colorsM, size(X,1), size(X,2), 3);
+    % figure; imagesc(colorsM2);
+    % figure; imagesc(colorsM2(:,:,1));
+    % figure; imagesc(colorsM2(:,:,2));
+    % figure; imagesc(colorsM2(:,:,3));
+
     if ~plotTexture
         patch('Vertices', mesh.vertices, 'Faces', mesh.faces, 'FaceVertexCData', colorsM, 'FaceColor', 'interp', 'EdgeColor', 'none');
         %patch('Vertices', mesh.vertices, 'Faces', mesh.faces, 'FaceColor', 'none', 'EdgeColor', 'k');
@@ -104,14 +109,20 @@ if 1
     % vertices(listInd);
     keepInd = [];
     keepInd = zeros(1, size(faces,1), 'logical');
+    listInd = sort(listInd);
     parfor iFace = 1:size(faces,1)
-        if any(faces(iFace,1) == listInd) || any(faces(iFace,2) == listInd) || any(faces(iFace,3) == listInd)
+        if any(faces(iFace,1) == listInd) && any(faces(iFace,2) == listInd) && any(faces(iFace,3) == listInd)
             % keepInd(end+1) = iFace;
             keepInd(iFace) = true;
         end
     end
     keepInd = find(keepInd);
+    for iFace = keepInd(:)'
+        faces(iFace,:) = [ find(faces(iFace,1) == listInd) find(faces(iFace,2) == listInd) find(faces(iFace,3) == listInd)];
+    end
     faces = faces(keepInd,:);
+    vertices = vertices(listInd,:);
+    colors = colors(listInd,:);
 
     if 1
         % plot low res mesh
@@ -176,6 +187,57 @@ end
 %    - remove vertices which do not have a face
 %    - reindex the faces
 % - transform back to original space (y-20 and z-10) and save
+
+%% save vertices
+vertices(:,2) = vertices(:,2)-20;
+vertices(:,3) = vertices(:,3)-10;
+
+verticesLR(:,2) = verticesLR(:,2)-20;
+verticesLR(:,3) = verticesLR(:,3)-10;
+facesFinal = [facesLR; faces+size(verticesLR,1)];
+verticesFinal = [verticesLR;vertices+size(verticesLR,1)];
+
+headmodel = '/System/Volumes/Data/data/matlab/eeglab/functions/supportfiles/head_modelColin27_5003_Standard-10-5-Cap339.mat';
+headmodelMonkey = '/System/Volumes/Data/data/matlab/eeglab/functions/supportfiles/head_modelColin27_5003_Standard-10-5-Cap339_monkey.mat';
+tmp = load('-mat', headmodel);
+tmp.cortex.vertices = vertices;
+tmp.cortex.faces = faces;
+save('-mat', headmodelMonkey, '-struct', 'tmp');
+
 % - use mesh to compute leadfield on 370 electrodes
 % - propagate R G and B separately, add the 3 to get the color
 % - add more electrodes for higher scalp resolution
+
+%% create dataset with many electrodes
+dipfitdefs;
+
+EEG = eeg_emptyset;
+EEG.chanlocs = readlocs(template_models(2).chanfile);
+[EEG.chanlocs, EEG.chaninfo] = eeg_checkchanlocs(EEG.chanlocs);
+EEG.data = rand(345,1000);
+EEG.srate = 100;
+EEG = eeg_checkset(EEG);
+EEG = pop_dipfit_settings( EEG, 'hdmfile',template_models(2).hdmfile,'mrifile',template_models(2).mrifile,'chanfile',template_models(2).chanfile,'coordformat',template_models(2).coordformat,'coord_transform',[0 0 0 0 0 0 1 1 1]);
+EEG = pop_leadfield(EEG, 'sourcemodel',headmodelMonkey,'sourcemodel2mni',[0 0 0 0 0 0 1 1 1] ,'downsample',1);
+
+leadfield = reshape( [ EEG.dipfit.sourcemodel.leadfield{:} ], [length(EEG.dipfit.sourcemodel.label) 3 length(EEG.dipfit.sourcemodel.leadfield)]);
+leadfield = permute(leadfield, [1 3 2]);
+
+% H = eye(EEG.nbchan) - ones(EEG.nbchan) ./ EEG.nbchan;
+% nvox = size(leadfield,2);
+% leadfield = reshape(H*leadfield(:, :), EEG.nbchan, nvox, 3);
+
+redChan = colors(:,1); % should we put the color on the normal of the surface?
+if 0
+    activity = repmat(redChan, [1 3]);
+else
+    activity = zeros(length(redChan)*3,1); activity(length(redChan)+1:length(redChan)*2) = redChan;
+end
+chanAct = leadfield(:,:)*activity(:);
+
+EEG = pop_runica(EEG, 'icatype', 'picard', 'maxiter',5);
+EEG.icawinv(:,2) = chanAct;
+figure; EEG = pop_headplot(EEG, 0, 2, 'Components of dataset: ', 1, 'meshfile','colin27headmesh.mat','transform',[0 0 0 0 0 0 1 1 1], 'setup',{'/System/Volumes/Data/data/matlab/test3d/tmp.spl','meshfile','colin27headmesh.mat','transform',[0 0 0 0 0 0 1 1 1] });
+
+
+
