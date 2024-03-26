@@ -1,0 +1,25 @@
+stlData = stlread('ear.stl');
+
+vertices = stlData.Points;
+faces = stlData.ConnectivityList;
+
+% Get the minimum and maximum z-coordinates
+zMin = min(vertices(:, 3));
+zMax = max(vertices(:, 3));
+
+% Create a color gradient based on z-coordinates
+colorMap = [linspace(0, 1, 256)'; linspace(0, 0, 256)'; linspace(1, 0, 256)'];
+imdata = imread('ngc6543a.jpg');
+
+colors = interp2(linspace(1, size(im)), colorMap, vertices(:, 3));
+
+% Create a patch object for visualization
+figure;
+patch('Vertices', vertices, 'Faces', faces, ...
+      'FaceColor', 'interp', 'FaceVertexCData', colors, ...
+      'EdgeColor', 'none');
+
+daspect([1 1 1]);
+view(3);
+axis equal;
+colorbar;
